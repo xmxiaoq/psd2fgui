@@ -1,13 +1,17 @@
 #!/usr/bin/env node
-
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const fs_extra_1 = __importDefault(require("fs-extra"));
+const globby_1 = __importDefault(require("globby"));
 var psd2fgui = require("./lib.js");
-
-function run(argv) {
+async function run(argv) {
     if (argv.length == 0) {
         console.info('Usage: psd2fgui psdFile [outputFile] [--nopack] [--ignore-font] [#buildId]');
         process.exit(0);
     }
-
     var psdFile = argv[0];
     var outputFile;
     var option = 0;
@@ -28,7 +32,7 @@ function run(argv) {
                     break;
             }
         }
-        else if (arg.substr(0,1) == '#') {
+        else if (arg.substr(0, 1) == '#') {
             buildId = arg.substr(1);
         }
         else {
@@ -40,11 +44,34 @@ function run(argv) {
             }
         }
     }
-
-    psd2fgui.convert(psdFile, outputFile, option, buildId)
-        .then(function (buildId) {
-            console.log('buildId: ' + buildId);
-        }).catch(console.err);
+    const st = fs_extra_1.default.statSync(psdFile);
+    if (st.isFile()) {
+        const file = psdFile;
+        try {
+            const buildID = await psd2fgui.convert(file, outputFile, option, buildId);
+            // console.log(`file:`, file, 'buildId: ' + buildID);
+        }
+        catch (e) {
+            console.error(`file:`, file, e);
+        }
+    }
+    else {
+        let files;
+        if (st.isDirectory()) {
+            files = globby_1.default.sync(`**/*.psd`, { onlyFiles: true, unique: true, absolute: true, cwd: psdFile });
+        }
+        else {
+            files = globby_1.default.sync(psdFile, { onlyFiles: true, unique: true, absolute: true });
+        }
+        for (let file of files) {
+            try {
+                const buildID = await psd2fgui.convert(file, outputFile, option, buildId);
+                // console.log(`file:`, file, 'buildId: ' + buildID);
+            }
+            catch (e) {
+                console.error(`file:`, file, e);
+            }
+        }
+    }
 }
-
 run(process.argv.slice(2));

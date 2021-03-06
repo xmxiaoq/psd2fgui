@@ -3,38 +3,32 @@
  * @license [MIT]
  * @copyright http://www.fairygui.com/
  */
-
 "use strict";
-
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const crypto_1 = __importDefault(require("crypto"));
 const PSD = require('psd');
 const fs = require('fs-extra');
 const path = require('path');
-const crypto = require('crypto');
 const archiver = require('archiver');
 const xmlbuilder = require('xmlbuilder');
-
 //The group name prefix identified as a component.
 const componentPrefix = 'Com';
-
 //The group name prefix identified as a common button.
 const commonButtonPrefix = 'Button';
-
 //The group name prefix identified as a checkbox button.
 const checkButtonPrefix = 'CheckButton';
-
 //The group name prefix identified as a radio button.
 const radioButtonPrefix = 'RadioButton';
-
 //The layer name suffix of each status of the button.
 const buttonStatusSuffix = ['@up', '@down', '@over', '@selectedOver'];
-
 exports.constants = {
     NO_PACK: 1,
     IGNORE_FONT: 2
 };
-
 var targetPackage;
-
 /**
  * Convert a PSD file to a fairygui package.
  * @param {string} psdFile path of the psd file.
@@ -49,10 +43,8 @@ exports.convert = function (psdFile, outputFile, option, buildId) {
             option = 0;
         if (!buildId)
             buildId = genBuildId();
-
         var pathInfo = path.parse(psdFile);
         var outputDirectory;
-
         if (option & exports.constants.NO_PACK) {
             outputDirectory = outputFile;
             if (!outputDirectory)
@@ -61,24 +53,18 @@ exports.convert = function (psdFile, outputFile, option, buildId) {
         else {
             outputDirectory = path.join(pathInfo.dir, pathInfo.name + '~temp');
             fs.emptyDirSync(outputDirectory);
-
             if (!outputFile)
                 outputFile = path.join(pathInfo.dir, pathInfo.name + '.fairypackage');
         }
-
         var psd = PSD.fromFile(psdFile);
         psd.parse();
-
         targetPackage = new UIPackage(outputDirectory, buildId);
         targetPackage.exportOption = option;
-
         createComponent(psd.tree(), pathInfo.name);
-
         var pkgDesc = xmlbuilder.create('packageDescription');
         pkgDesc.att('id', targetPackage.id);
         var resourcesNode = pkgDesc.ele('resources');
         var savePromises = [];
-
         targetPackage.resources.forEach(function (item) {
             var resNode = resourcesNode.ele(item.type);
             resNode.att('id', item.id).att('name', item.name).att('path', '/');
@@ -88,20 +74,16 @@ exports.convert = function (psdFile, outputFile, option, buildId) {
                     resNode.att('scale9Grid', item.scale9Grid);
                 }
             }
-
             if (item.type == 'image')
                 savePromises.push(item.data.saveAsPng(path.join(targetPackage.basePath, item.name)));
             else
                 savePromises.push(fs.writeFile(path.join(targetPackage.basePath, item.name), item.data));
         });
-
-        savePromises.push(fs.writeFile(path.join(targetPackage.basePath, 'package.xml'),
-            pkgDesc.end({ pretty: true })));
-
+        savePromises.push(fs.writeFile(path.join(targetPackage.basePath, 'package.xml'), pkgDesc.end({ pretty: true })));
         var pa = Promise.all(savePromises);
         if (option & exports.constants.NO_PACK) {
             pa.then(function () {
-                console.log(psdFile + '->' + outputDirectory);
+                console.log(psdFile + ' -> ' + outputDirectory);
                 resolve(buildId);
             }).catch(function (reason) {
                 reject(reason);
@@ -115,11 +97,9 @@ exports.convert = function (psdFile, outputFile, option, buildId) {
                 output.on('close', function () {
                     fs.emptyDirSync(outputDirectory);
                     fs.rmdirSync(outputDirectory);
-
                     console.log(psdFile + '->' + outputFile);
                     resolve(buildId);
                 });
-
                 var zipArchiver = archiver('zip');
                 zipArchiver.pipe(output);
                 files.forEach(function (ff) {
@@ -131,8 +111,7 @@ exports.convert = function (psdFile, outputFile, option, buildId) {
             });
         }
     });
-}
-
+};
 //=====================================================================================
 function UIPackage(basePath, buildId) {
     this.id = buildId.substr(0, 8);
@@ -141,43 +120,34 @@ function UIPackage(basePath, buildId) {
     this.getNextItemId = function () {
         return this.itemIdBase + (this.nextItemIndex++).toString(36);
     };
-
     this.basePath = basePath;
     fs.ensureDirSync(basePath);
-
     this.resources = [];
     this.sameDataTestHelper = {};
     this.sameNameTestHelper = {};
 }
-
 function createImage(aNode, scale9Grid) {
     var packageItem = createPackageItem('image', aNode.get('name') + '.png', aNode);
     if (scale9Grid) {
         packageItem.scale = '9grid';
         packageItem.scale9Grid = scale9Grid;
     }
-
     return packageItem;
 }
-
 function createComponent(aNode, name) {
     var component = xmlbuilder.create('component');
     component.att('size', aNode.get('width') + ',' + aNode.get('height'));
     var displayList = component.ele('displayList');
-
     var cnt = aNode.children().length;
     for (var i = cnt - 1; i >= 0; i--) {
         parseNode(aNode.children()[i], aNode, displayList);
     }
-
     return createPackageItem('component', (name ? name : aNode.get('name')) + '.xml', component.end({ pretty: true }));
 }
-
 function createButton(aNode, instProps) {
     var component = xmlbuilder.create('component');
     component.att('size', aNode.get('width') + ',' + aNode.get('height'));
     component.att('extention', 'Button');
-
     var images = [];
     var imagePages = [];
     var imageCnt = 0;
@@ -188,12 +158,13 @@ function createButton(aNode, instProps) {
                 images[i] = childNode;
                 imageCnt++;
             }
-        };
+        }
+        ;
     });
     for (var i in buttonStatusSuffix) {
         imagePages[i] = [];
         if (!images[i]) {
-            if (i == 3 && images[1]) //if no 'selectedOver', use 'down'
+            if (i == `3` && images[1]) //if no 'selectedOver', use 'down'
                 imagePages[1].push(i);
             else //or else, use 'up'
                 imagePages[0].push(i);
@@ -202,7 +173,6 @@ function createButton(aNode, instProps) {
             imagePages[i].push(i);
         }
     }
-
     var onElementCallback = function (child, node) {
         var nodeName = node.get('name');
         var j = images.indexOf(node);
@@ -211,7 +181,6 @@ function createButton(aNode, instProps) {
             gear.att('controller', 'button');
             gear.att('pages', imagePages[j].join(','));
         }
-
         if (nodeName.indexOf('@title') != -1) {
             if (child.attributes['text']) {
                 instProps['@title'] = child.attributes['text'].value;
@@ -225,17 +194,14 @@ function createButton(aNode, instProps) {
             }
         }
     };
-
     var controller = component.ele('controller');
     controller.att('name', 'button');
     controller.att('pages', '0,up,1,down,2,over,3,selectedOver');
-
     var displayList = component.ele('displayList');
     var cnt = aNode.children().length;
-    for (i = cnt - 1; i >= 0; i--) {
+    for (let i = cnt - 1; i >= 0; i--) {
         parseNode(aNode.children()[i], aNode, displayList, onElementCallback);
     }
-
     var extension = component.ele('Button');
     if (aNode.get('name').indexOf(checkButtonPrefix) == 0) {
         extension.att('mode', 'Check');
@@ -243,28 +209,24 @@ function createButton(aNode, instProps) {
     }
     else if (aNode.get('name').indexOf(radioButtonPrefix) == 0)
         extension.att('mode', 'Radio');
-
     if (imageCnt == 1) {
         extension.att('downEffect', 'scale');
         extension.att('downEffectValue', '1.1');
     }
-
     return createPackageItem('component', aNode.get('name') + '.xml', component.end({ pretty: true }));
 }
-
 function createPackageItem(type, fileName, data) {
     var dataForHash;
     if (type == 'image') //data should a psd layer
         dataForHash = Buffer.from(data.get('image').pixelData);
     else
         dataForHash = data;
-    var hash = crypto.createHash('md5').update(dataForHash).digest('hex');
+    var hash = crypto_1.default.createHash('md5').update(dataForHash).digest('hex');
     var item = targetPackage.sameDataTestHelper[hash];
     if (!item) {
         item = {};
         item.type = type;
         item.id = targetPackage.getNextItemId();
-
         var i = fileName.lastIndexOf('.');
         var basename = fileName.substr(0, i);
         var ext = fileName.substr(i);
@@ -286,23 +248,19 @@ function createPackageItem(type, fileName, data) {
         targetPackage.resources.push(item);
         targetPackage.sameDataTestHelper[hash] = item;
     }
-
     return item;
 }
-
 function parseNode(aNode, rootNode, displayList, onElementCallback) {
     var child;
     var packageItem;
     var instProps;
     var str;
-
     var nodeName = aNode.get('name');
     var specialUsage;
     if (nodeName.indexOf('@title') != -1)
         specialUsage = 'title';
     else if (nodeName.indexOf('@icon') != -1)
         specialUsage = 'icon';
-
     if (aNode.isGroup()) {
         if (nodeName.indexOf(componentPrefix) == 0) {
             packageItem = createComponent(aNode);
@@ -378,21 +336,16 @@ function parseNode(aNode, rootNode, displayList, onElementCallback) {
             child.att('fileName', packageItem.name);
         }
     }
-
     if (child) {
         var opacity = aNode.get('opacity');
         if (opacity < 255)
             child.att('alpha', (opacity / 255).toFixed(2));
-
         if (onElementCallback)
             onElementCallback(child, aNode);
-
         displayList.importDocument(child);
     }
-
     return child;
 }
-
 //=====================================================================================
 function genBuildId() {
     var magicNumber = Math.floor(Math.random() * 36).toString(36).substr(0, 1);
@@ -404,10 +357,8 @@ function genBuildId() {
         count += Math.pow(26, i) * (c + 10);
     }
     count += Math.floor(Math.random() * 1000000) + Math.floor(Math.random() * 222640);
-
     return magicNumber + s1.substr(s1.length - 4) + s2.substr(s2.length - 3) + count.toString(36);
 }
-
 function convertToHtmlColor(rgbaArray, includingAlpha) {
     var result = '#';
     var str;
@@ -417,13 +368,11 @@ function convertToHtmlColor(rgbaArray, includingAlpha) {
             str = '0' + str;
         result += str;
     }
-
     for (var i = 0; i < 3; i++) {
         str = rgbaArray[i].toString(16);
         if (str.length == 1)
             str = '0' + str;
         result += str;
     }
-
     return result;
 }
